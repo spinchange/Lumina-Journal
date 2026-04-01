@@ -1,0 +1,50 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Unique identifier for the user" },
+        "email": { "type": "string", "format": "email", "description": "User email address" },
+        "displayName": { "type": "string", "description": "User display name" },
+        "photoURL": { "type": "string", "description": "User profile picture URL" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the user account was created" }
+      },
+      "required": ["uid", "email"]
+    },
+    "JournalEntry": {
+      "title": "Journal Entry",
+      "description": "A single journal entry or blog post",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the entry" },
+        "userId": { "type": "string", "description": "The UID of the user who owns this entry" },
+        "date": { "type": "string", "format": "date-time", "description": "When the entry was created" },
+        "title": { "type": "string", "description": "The title of the entry" },
+        "content": { "type": "string", "description": "The Markdown content of the entry" },
+        "chatHistory": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "role": { "type": "string", "enum": ["user", "model"] },
+              "content": { "type": "string" }
+            }
+          }
+        }
+      },
+      "required": ["userId", "date", "title", "content"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile documents"
+    },
+    "/entries/{entryId}": {
+      "schema": "JournalEntry",
+      "description": "Journal entries collection"
+    }
+  }
+}

@@ -1,0 +1,46 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #0061A4;
+  --color-on-primary: #FFFFFF;
+  --color-primary-container: #D1E4FF;
+  --color-on-primary-container: #001D36;
+  
+  --color-secondary: #535F70;
+  --color-on-secondary: #FFFFFF;
+  --color-secondary-container: #D7E3F7;
+  --color-on-secondary-container: #101C2B;
+  
+  --color-surface: #F8F9FF;
+  --color-on-surface: #191C20;
+  --color-surface-variant: #DFE2EB;
+  --color-on-surface-variant: #43474E;
+  
+  --color-outline: #73777F;
+  
+  --radius-xl: 1.5rem;
+  --radius-2xl: 2rem;
+}
+
+@layer base {
+  body {
+    @apply bg-surface text-on-surface font-sans;
+  }
+}
+
+.m3-card {
+  @apply bg-surface-variant/30 rounded-xl p-4 border border-outline/10 transition-all hover:bg-surface-variant/50;
+}
+
+.m3-button-primary {
+  @apply bg-primary text-on-primary px-6 py-2.5 rounded-full font-medium shadow-sm hover:shadow-md transition-all active:scale-95 disabled:opacity-50;
+}
+
+.m3-button-tonal {
+  @apply bg-secondary-container text-on-secondary-container px-6 py-2.5 rounded-full font-medium hover:shadow-sm transition-all active:scale-95;
+}
+
+.m3-icon-button {
+  @apply p-2 rounded-full hover:bg-on-surface/10 transition-colors text-on-surface-variant;
+}
+

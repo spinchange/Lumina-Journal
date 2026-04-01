@@ -1,0 +1,5 @@
+{
+  "name": "Lumina Journal",
+  "description": "A Material 3 journaling app that transforms your daily chats into polished blog-style entries using Gemini AI.",
+  "requestFramePermissions": []
+}
