@@ -18,7 +18,12 @@ import {
   LogOut,
   LogIn,
   User as UserIcon,
-  AlertCircle
+  AlertCircle,
+  Heart,
+  Anchor,
+  Palette,
+  Target,
+  Sun
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
@@ -26,7 +31,7 @@ import Markdown from 'react-markdown';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
-import { Message, JournalEntry, ViewMode } from './types';
+import { Message, JournalEntry, ViewMode, ReflectionMode } from './types';
 import { chatWithGemini, transformChatToBlog } from './services/gemini';
 import { 
   auth, 
@@ -101,10 +106,12 @@ function JournalApp() {
   const [view, setView] = useState<ViewMode>('list');
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [currentChat, setCurrentChat] = useState<Message[]>([]);
+  const [reflectionMode, setReflectionMode] = useState<ReflectionMode>('empathetic');
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<JournalEntry | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -163,20 +170,24 @@ function JournalApp() {
   }, [currentChat]);
 
   const handleLogin = async () => {
+    setAuthError(null);
     try {
       await signInWithPopup(auth, googleProvider);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login failed', error);
+      setAuthError(`Login failed: ${error.message || 'Unknown error'}`);
     }
   };
 
   const handleLogout = async () => {
+    setAuthError(null);
     try {
       await signOut(auth);
       setView('list');
       setSelectedEntry(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Logout failed', error);
+      setAuthError(`Logout failed: ${error.message || 'Unknown error'}`);
     }
   };
 
@@ -185,8 +196,20 @@ function JournalApp() {
       handleLogin();
       return;
     }
+    setView('setup');
+  };
+
+  const selectPersona = (mode: ReflectionMode) => {
+    setReflectionMode(mode);
+    const welcomeMessages: Record<ReflectionMode, string> = {
+      empathetic: `Hi ${user?.displayName?.split(' ')[0] || 'there'}! How was your day? I'm here to listen and help you reflect.`,
+      stoic: `Greetings. Let us examine the events of your day with clarity and reason. What occurred that was within your control?`,
+      creative: `Welcome! Let's weave the story of your day. What colors, sounds, or unexpected sparks of inspiration did you encounter?`,
+      coach: `Ready to level up? Let's break down your day. What were your biggest wins and what can we improve tomorrow?`,
+      gratitude: `Hello! Let's find the light in your day. What are three things, no matter how small, that you are thankful for right now?`
+    };
     setCurrentChat([
-      { role: 'model', content: `Hi ${user.displayName?.split(' ')[0] || 'there'}! How was your day? I'm here to listen and help you reflect.` }
+      { role: 'model', content: welcomeMessages[mode] }
     ]);
     setView('chat');
   };
@@ -201,11 +224,11 @@ function JournalApp() {
     setIsTyping(true);
 
     try {
-      const response = await chatWithGemini(newChat);
+      const response = await chatWithGemini(newChat, reflectionMode);
       setCurrentChat([...newChat, { role: 'model', content: response }]);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Chat error:', error);
-      setCurrentChat([...newChat, { role: 'model', content: "I'm having a little trouble connecting right now. Let's try again." }]);
+      setCurrentChat([...newChat, { role: 'model', content: `I'm having a little trouble connecting right now: ${error.message || "Let's try again."}` }]);
     } finally {
       setIsTyping(false);
     }
@@ -214,9 +237,10 @@ function JournalApp() {
   const generateEntry = async () => {
     if (!user || currentChat.length < 2) return;
     setIsGenerating(true);
+    setAuthError(null);
 
     try {
-      const blogContent = await transformChatToBlog(currentChat);
+      const blogContent = await transformChatToBlog(currentChat, reflectionMode);
       
       const lines = blogContent.split('\n');
       const titleLine = lines.find(l => l.startsWith('# '));
@@ -232,9 +256,12 @@ function JournalApp() {
       }).catch(err => handleFirestoreError(err, OperationType.CREATE, path));
 
       setView('list');
-      setCurrentChat([]);
-    } catch (error) {
+      setCurrentChat([
+        { role: 'model', content: "Hi! I'm Lumina. How was your day? I'm here to help you reflect and turn your thoughts into a beautiful journal entry." }
+      ]);
+    } catch (error: any) {
       console.error('Generation error:', error);
+      setAuthError(`Failed to generate journal entry: ${error.message || 'Unknown error'}`);
     } finally {
       setIsGenerating(false);
     }
@@ -345,6 +372,15 @@ function JournalApp() {
       </header>
 
       <main className="flex-1 overflow-hidden relative flex flex-col">
+        {authError && (
+          <div className="absolute top-4 left-4 right-4 z-50 m3-card bg-error-container text-on-error-container flex items-center gap-3 py-3 px-4 shadow-lg animate-in slide-in-from-top duration-300">
+            <AlertCircle size={20} />
+            <span className="text-sm flex-1">{authError}</span>
+            <button onClick={() => setAuthError(null)} className="p-1 hover:bg-on-error-container/10 rounded-full">
+              <Plus className="rotate-45" size={20} />
+            </button>
+          </div>
+        )}
         <AnimatePresence mode="wait">
           {view === 'list' && (
             <motion.div 
@@ -399,6 +435,43 @@ function JournalApp() {
                   ))}
                 </div>
               )}
+            </motion.div>
+          )}
+
+          {view === 'setup' && (
+            <motion.div
+              key="setup"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.05 }}
+              className="p-6 overflow-y-auto h-full space-y-8"
+            >
+              <div className="text-center space-y-2">
+                <h2 className="text-2xl font-bold text-on-surface">Choose Your Guide</h2>
+                <p className="text-on-surface-variant">Select the type of reflection you'd like to have today.</p>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                {[
+                  { id: 'empathetic', name: 'Empathetic Listener', icon: Heart, desc: 'A warm, non-judgmental space to share your feelings.', color: 'bg-pink-500/10 text-pink-500' },
+                  { id: 'stoic', name: 'Stoic Philosopher', icon: Anchor, desc: 'Focus on logic, control, and emotional resilience.', color: 'bg-blue-500/10 text-blue-500' },
+                  { id: 'creative', name: 'Creative Muse', icon: Palette, desc: 'Explore the metaphors and inspirations of your day.', color: 'bg-purple-500/10 text-purple-500' },
+                  { id: 'coach', name: 'Growth Coach', icon: Target, desc: 'Analyze wins, challenges, and actionable progress.', color: 'bg-green-500/10 text-green-500' },
+                  { id: 'gratitude', name: 'Gratitude Guide', icon: Sun, desc: 'Shift your focus to the positive and the thankful.', color: 'bg-amber-500/10 text-amber-500' }
+                ].map((persona) => (
+                  <button
+                    key={persona.id}
+                    onClick={() => selectPersona(persona.id as ReflectionMode)}
+                    className="m3-card text-left p-6 hover:ring-2 hover:ring-primary transition-all group"
+                  >
+                    <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110", persona.color)}>
+                      <persona.icon size={28} />
+                    </div>
+                    <h3 className="text-lg font-bold mb-1">{persona.name}</h3>
+                    <p className="text-sm text-on-surface-variant leading-relaxed">{persona.desc}</p>
+                  </button>
+                ))}
+              </div>
             </motion.div>
           )}
 
@@ -457,7 +530,7 @@ function JournalApp() {
                   </button>
                 </div>
                 
-                {currentChat.length >= 3 && (
+                {currentChat.length >= 2 && (
                   <button 
                     onClick={generateEntry}
                     disabled={isGenerating}

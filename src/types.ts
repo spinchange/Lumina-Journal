@@ -12,4 +12,6 @@ export interface JournalEntry {
   mood?: string;
 }
 
-export type ViewMode = 'list' | 'chat' | 'entry';
+export type ViewMode = 'list' | 'chat' | 'entry' | 'setup';
+
+export type ReflectionMode = 'empathetic' | 'stoic' | 'creative' | 'coach' | 'gratitude';
